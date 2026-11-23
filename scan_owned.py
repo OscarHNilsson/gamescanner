@@ -11,6 +11,7 @@ load_dotenv()
 
 api_key = os.environ["STEAM_API_KEY"]
 steam_id = os.environ["DONCE"]
+owner = "Donat"
 cache_path = Path(__file__).with_name("steam_cache.json")
 
 if cache_path.exists():
@@ -88,11 +89,47 @@ multiplayer_labels = {
     "Shared/Split Screen Co-op",
 }
 
+output_path = Path(__file__).with_name("owned_games.json")
+
+# Load previous scans so this run adds to the existing library data.
+if output_path.exists():
+    saved_games = json.loads(output_path.read_text(encoding="utf-8"))
+    games_by_id = {str(game["appid"]): game for game in saved_games}
+else:
+    games_by_id = {}
+
 for game in games:
-    categories = get_categories(game["appid"])
-    multiplayer = multiplayer_labels.intersection(categories)
-    
+    appid = str(game["appid"])
+    categories = get_categories(appid)
+    multiplayer = sorted(multiplayer_labels.intersection(categories))
+
+    entry = games_by_id.setdefault(appid, {
+        "appid": appid,
+        "name": game.get("name", "Unknown game"),
+        "owners": [],
+        "tags": [],
+    })
+
+    # Fill in defaults for records created by older versions of the script.
+    entry.setdefault("owners", [])
+    entry.setdefault("tags", [])
+    if game.get("name"):
+        entry["name"] = game["name"]
+
+    if owner not in entry["owners"]:
+        entry["owners"].append(owner)
+
+    # Keep existing tags and add any newly discovered store categories.
+    entry["tags"] = sorted(set(entry["tags"]) | set(multiplayer))
+
     if multiplayer:
-        print(f'{game.get("name", "Unknown game")}: {", ".join(sorted(multiplayer))}')
-    
-print(f"Found {len(games)} games")
+        print(f'{entry["name"]} — {owner}: {", ".join(multiplayer)}')
+        
+output_path.write_text(
+    json.dumps(sorted(games_by_id.values(), key=lambda item: item["name"].casefold()), indent=2),
+    encoding="utf-8",
+)
+
+print(f"Saved game data to {output_path}")
+
+print(f"Found {len(games)} games for {owner}")

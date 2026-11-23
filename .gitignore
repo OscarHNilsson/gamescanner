@@ -1,3 +1,8 @@
+steam_cache.json
+./steam_cache.json
+owned_games.json
+./owned_games.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
